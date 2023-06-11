@@ -41,9 +41,7 @@ export async function usersRoutes(app: FastifyInstance) {
       return response.status(403).send({
         error: 'Email already in use',
       })
-    }
-
-    if (!sessionId) {
+    } else {
       sessionId = randomUUID()
 
       response.cookie('sessionId', sessionId, {
