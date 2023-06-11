@@ -61,4 +61,60 @@ export async function usersRoutes(app: FastifyInstance) {
 
     return response.status(201).send()
   })
+
+  app.put('/:id', async (request, response) => {
+    const createUserBodySchema = z.object({
+      name: z.string().optional(),
+      email: z.string().email().optional(),
+    })
+
+    const getUserParamsSchema = z.object({
+      id: z.string().uuid(),
+    })
+
+    const { id } = getUserParamsSchema.parse(request.params)
+    const { name, email } = createUserBodySchema.parse(request.body)
+
+    const user = await knex('users')
+      .where({
+        id,
+      })
+      .first()
+
+    if (!user) {
+      return response.status(404).send({
+        error: 'User not found.',
+      })
+    }
+
+    await knex('users').where('id', user.id).update({
+      name,
+      email,
+    })
+
+    return response.status(204).send()
+  })
+
+  app.delete('/:id', async (request, response) => {
+    const getUserParamsSchema = z.object({
+      id: z.string().uuid(),
+    })
+
+    const { id } = getUserParamsSchema.parse(request.params)
+
+    const user = await knex('users')
+      .where({
+        id,
+      })
+      .first()
+
+    if (!user) {
+      return response.status(404).send({
+        error: 'User not found.',
+      })
+    }
+
+    await knex('users').where('id', user.id).delete()
+    return response.status(200).send()
+  })
 }
