@@ -22,11 +22,14 @@ export async function dietRoutes(app: FastifyInstance) {
         })
       }
 
-      const meals = await knex('meals').where('user_id', user.id).select()
+      const meals = await knex('meals')
+        .where('user_id', user.id)
+        .select()
+        .orderBy('date', 'desc')
 
       if (!meals) {
         return response.status(404).send({
-          error: "Can't found list of meals.",
+          error: 'Diet list not found.',
         })
       }
 
@@ -55,6 +58,57 @@ export async function dietRoutes(app: FastifyInstance) {
       }
 
       return { meal }
+    },
+  )
+
+  app.get(
+    '/summary',
+    { preHandler: checkSessionIdExists },
+    async (request, response) => {
+      const { sessionId } = request.cookies
+
+      const user = await knex('users').where('session_id', sessionId).first()
+
+      if (!user) {
+        return response.status(404).send({
+          error: 'User not found.',
+        })
+      }
+
+      const meals = await knex('meals').where('user_id', user.id).select()
+
+      if (!meals) {
+        return response.status(404).send({
+          error: 'Diet list not found.',
+        })
+      }
+      const totalOfMeals = await knex('meals')
+        .where({ user_id: user.id })
+        .count({ count: '*' })
+        .first()
+      const mealsOnDiet = await knex('meals')
+        .where({ user_id: user.id, is_on_diet: true })
+        .count({ count: '*' })
+        .first()
+      const mealsOutOfDiet = await knex('meals')
+        .where({ user_id: user.id, is_on_diet: false })
+        .count({ count: '*' })
+        .first()
+      const bestDietSequence = await knex('meals')
+        .select(knex.raw('COUNT(*) as dietSequence'))
+        .where('user_id', user.id)
+        .andWhere('is_on_diet', true)
+        .groupByRaw('DATE(created_at)')
+        .orderBy('dietSequence', 'desc')
+        .limit(1)
+        .first()
+
+      return {
+        totalOfMeals: totalOfMeals?.count || 0,
+        totalInDiet: mealsOnDiet?.count || 0,
+        totalOffdiet: mealsOutOfDiet?.count || 0,
+        bestDietSequence: bestDietSequence || 0,
+      }
     },
   )
 
